@@ -20,9 +20,6 @@ jobs:
           zone_id=$(jq -er '.result[0].id' <<<"$zone_json")
           echo "ZONE_FOUND=true"
 
-          echo "TOKEN_VERIFY:"
-          curl -fsS "${auth[@]}" "$api/user/tokens/verify" | jq -c '{success, status:.result.status}'
-
           echo "MX_RECORDS:"
           curl -fsS "${auth[@]}" -G "$api/zones/$zone_id/dns_records" --data-urlencode "type=MX" --data-urlencode "per_page=100" |
             jq -c '[.result[] | {name,content,priority,ttl}]'
