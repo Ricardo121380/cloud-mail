@@ -1,4 +1,4 @@
-name: Audit Cloud Mail account state
+name: Prepare new Cloud Mail admin
 
 on:
   workflow_dispatch:
@@ -21,18 +21,12 @@ jobs:
       - name: Install worker dependencies
         working-directory: mail-worker
         run: pnpm install --frozen-lockfile
-      - name: Audit database without exposing accounts
+      - name: Disable required invite code and verify settings
         working-directory: mail-worker
         run: |
           set -euo pipefail
-          admin_sql=${ADMIN//\'/\'\'}
-          sql="SELECT
-            (SELECT COUNT(*) FROM user) AS user_count,
-            (SELECT COUNT(*) FROM user WHERE is_del = 0) AS active_user_count,
-            (SELECT COUNT(*) FROM user WHERE email = '$admin_sql' AND is_del = 0) AS configured_admin_exists,
-            (SELECT COUNT(*) FROM user WHERE email = 'admin@team.mail.142857142.xyz' AND is_del = 0) AS new_admin_exists,
-            (SELECT COUNT(*) FROM email) AS email_count,
-            (SELECT register FROM setting LIMIT 1) AS register_mode,
-            (SELECT reg_key FROM setting LIMIT 1) AS reg_key_mode;"
+          pnpm wrangler d1 execute cloud-mail --remote --command \
+            "UPDATE setting SET register = 0, reg_key = 1;"
+          sql="SELECT register AS register_mode, reg_key AS reg_key_mode FROM setting LIMIT 1;"
           pnpm wrangler d1 execute cloud-mail --remote --json --command "$sql" \
             | jq -c '.[0].results[0]'
