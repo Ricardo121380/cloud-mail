@@ -30,6 +30,7 @@ jobs:
             (SELECT COUNT(*) FROM user) AS user_count,
             (SELECT COUNT(*) FROM user WHERE is_del = 0) AS active_user_count,
             (SELECT COUNT(*) FROM user WHERE email = '$admin_sql' AND is_del = 0) AS configured_admin_exists,
+            (SELECT COUNT(*) FROM user WHERE email = 'admin@team.mail.142857142.xyz' AND is_del = 0) AS new_admin_exists,
             (SELECT COUNT(*) FROM email) AS email_count,
             (SELECT register FROM setting LIMIT 1) AS register_mode,
             (SELECT reg_key FROM setting LIMIT 1) AS reg_key_mode;"
