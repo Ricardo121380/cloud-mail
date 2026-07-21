@@ -12,27 +12,21 @@ jobs:
       KV_NAMESPACE_ID: ${{ secrets.KV_NAMESPACE_ID }}
       PUBLIC_API_TOKEN: ${{ secrets.CLOUDMAIL_PUBLIC_API_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4.1.0
-        with:
-          version: 9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: Install worker dependencies
-        working-directory: mail-worker
-        run: pnpm install --frozen-lockfile
       - name: Replace the KV-backed public API token
-        working-directory: mail-worker
         run: |
           set -euo pipefail
           test -n "$PUBLIC_API_TOKEN"
+          api="https://api.cloudflare.com/client/v4"
+          auth=(-H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")
 
           if [ -z "$KV_NAMESPACE_ID" ]; then
-            KV_NAMESPACE_ID=$(pnpm wrangler kv namespace list --json \
-              | jq -er '.[] | select(.title == "cloud-mail") | .id')
+            KV_NAMESPACE_ID=$(curl -fsS "${auth[@]}" \
+              "$api/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces?per_page=100" \
+              | jq -er '.result[] | select(.title == "cloud-mail") | .id')
           fi
 
-          pnpm wrangler kv key put "public_key:" "$PUBLIC_API_TOKEN" \
-            --namespace-id "$KV_NAMESPACE_ID"
+          curl -fsS -X PUT "${auth[@]}" \
+            --data-binary "$PUBLIC_API_TOKEN" \
+            "$api/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces/$KV_NAMESPACE_ID/values/public_key%3A" \
+            >/dev/null
           echo "PUBLIC_API_TOKEN_ROTATED=true"
