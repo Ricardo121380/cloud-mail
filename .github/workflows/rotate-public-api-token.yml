@@ -1,0 +1,38 @@
+name: Rotate Cloud Mail public API token
+
+on:
+  workflow_dispatch:
+
+jobs:
+  rotate:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      KV_NAMESPACE_ID: ${{ secrets.KV_NAMESPACE_ID }}
+      PUBLIC_API_TOKEN: ${{ secrets.CLOUDMAIL_PUBLIC_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4.1.0
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install worker dependencies
+        working-directory: mail-worker
+        run: pnpm install --frozen-lockfile
+      - name: Replace the KV-backed public API token
+        working-directory: mail-worker
+        run: |
+          set -euo pipefail
+          test -n "$PUBLIC_API_TOKEN"
+
+          if [ -z "$KV_NAMESPACE_ID" ]; then
+            KV_NAMESPACE_ID=$(pnpm wrangler kv namespace list --json \
+              | jq -er '.[] | select(.title == "cloud-mail") | .id')
+          fi
+
+          pnpm wrangler kv key put "public_key:" "$PUBLIC_API_TOKEN" \
+            --namespace-id "$KV_NAMESPACE_ID"
+          echo "PUBLIC_API_TOKEN_ROTATED=true"
